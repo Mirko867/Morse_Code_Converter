@@ -11,7 +11,26 @@ YELLOW = "#D9EDBF"
 ORANGE = "#FFB996"
 GREEN = "#FDFFAB"
 FONT_NAME = "Courier"
+
+# Check if the file "output.pdf" exist in the directory. If not, it creates one.
+output_file_path = "output.pdf"
+if not os.path.isfile(output_file_path):
+    try:
+        # Create a new PDF file with a placeholder text
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt="Please insert your text or upload a file.", ln=True, align='C')
+        pdf.output(output_file_path)
+        print(f"File '{output_file_path}' created successfully.")
+    except Exception as e:
+        print(f"Error creating file: {str(e)}")
+else:
+    print(f"File '{output_file_path}' already exists.")
+
 reader = PdfReader("output.pdf")
+
+
 
 # ---------------------------- DICTIONARIES ------------------------------- #
 morse_signs_dict = { 'A':'.-', 'B':'-...',
@@ -32,43 +51,67 @@ morse_signs_dict = { 'A':'.-', 'B':'-...',
             ')':'-.--.-', ',': '--..--',' ': '/'}
 
 # ---------------------------- MAIN FUNCTION ------------------------------- #
-# Function to encrypt the string according to the morse code chart
+# Function to encode and decode the string according to the morse code chart
 def convert(selected_mode):
     global reader
+    user_input = text_display.get(1.0 , tk.END).strip()
     if selected_mode == "Encode":
-        final_morse_code = ''
-        for page in reader.pages:
-            text = page.extract_text()
-            for char in text.upper():
+        if not user_input:  # If the user didn't provide any input, use the text from the PDF
+            final_morse_code = ''
+            for page in reader.pages:
+                text = page.extract_text()
+                for char in text.upper():
+                    if char in morse_signs_dict:
+                        final_morse_code += morse_signs_dict[char] + ' '
+                    elif char == ' ':
+                        final_morse_code += '/ '
+                final_morse_code += '\n'  # Add a newline after processing each page
+            text_display.config(state=tk.NORMAL)
+            text_display.delete(1.0 , tk.END)
+            text_display.insert(tk.END , f"{final_morse_code.strip()}")
+            text_display.config(state=tk.DISABLED)
+            return final_morse_code.strip()  # Remove trailing spaces
+        else:
+            final_morse_code = ''
+            for char in user_input.upper():
                 if char in morse_signs_dict:
-                    final_morse_code += morse_signs_dict[char] + ' '
+                    final_morse_code += morse_signs_dict[ char ] + ' '
                 elif char == ' ':
                     final_morse_code += '/ '
-            final_morse_code += '\n'  # Add a newline after processing each page
+            final_morse_code += '\n'  # Add a newline after processing the user input
         text_display.config(state=tk.NORMAL)
         text_display.delete(1.0 , tk.END)
         text_display.insert(tk.END , f"{final_morse_code.strip()}")
-        text_display.config(state=tk.DISABLED)
         return final_morse_code.strip()  # Remove trailing spaces
     else:
         text = ''
         for page_num in range(len(reader.pages)):
             page = reader.pages[ page_num ]
             text += page.extract_text()
-        initial_morse_code = text.split('  ')
-        decoded_text = ''
-        for code in initial_morse_code:
-            letters = code.split(' ')
-            for letter in letters:
-                if letter in morse_signs_dict.values():
-                    decoded_text += [k for k, v in morse_signs_dict.items() if v == letter][0]
-            decoded_text += ' '
-        text_display.config(state=tk.NORMAL)
-        text_display.delete(1.0 , tk.END)
-        text_display.insert(tk.END, f"{decoded_text.strip()}")
-        text_display.config(state=tk.DISABLED)
-        return decoded_text.strip()
+        if not user_input:  # If the user didn't provide any input, use the text from the PDF
+            initial_morse_code = text.split('  ')
+            decoded_text = ''
+            for code in initial_morse_code:
+                letters = code.split(' ')
+                for letter in letters:
+                    if letter in morse_signs_dict.values():
+                        decoded_text += [ k for k , v in morse_signs_dict.items() if v == letter ][ 0 ]
+                decoded_text += ' '
+        else:
+            initial_morse_code = user_input.split('  ')
+            decoded_text = ''
+            for code in initial_morse_code:
+                letters = code.split(' ')
+                for letter in letters:
+                    if letter in morse_signs_dict.values():
+                        decoded_text += [k for k, v in morse_signs_dict.items() if v == letter][0]
+                decoded_text += ' '
+            text_display.config(state=tk.NORMAL)
+            text_display.delete(1.0 , tk.END)
+            text_display.insert(tk.END, f"{decoded_text.strip()}")
+            return decoded_text.strip()
 
+# Function to select the file and save it as output.pdf
 def upload(status_label):
     file_window = tk.Toplevel(main_window)
     file_window.title("Choose your file")
@@ -110,6 +153,15 @@ def upload(status_label):
     select_button.config(bg=ORANGE)
     select_button.pack(pady=10)
 
+# # Function to check if the text inserted is in morse code
+# def detect_morse_code():
+#     user_input = text_display.get(1.0, tk.END).strip()
+#     if all(char in ('.-/ ') for char in user_input):
+#         status_label.config(text="The input is in Morse code.")
+#     else:
+#         status_label.config(text="The input is not in Morse code.")
+
+# Function to replace the output file with an empty one once the main windows is closed
 def on_close():
     output_file_path = os.path.join(os.getcwd(), "output.pdf")
 
@@ -124,7 +176,7 @@ def on_close():
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt="Please insert your text", ln=True, align='C')
+        pdf.cell(200, 10, txt="Please insert your text or upload a file.", ln=True, align='C')
         pdf.output(output_file_path)
     except Exception as e:
         print(f"Error creating empty file: {str(e)}")
@@ -149,7 +201,7 @@ label_decoder = Label(text="Decoder", font=(FONT_NAME, 30, "bold"), fg=ORANGE, b
 label_decoder.config(bg=YELLOW, highlightthickness=0)
 label_decoder.grid(columnspan=2, row=0)
 
-status_label = Label(text="No file uploaded")
+status_label = Label(text="Please insert your text or upload a file.")
 status_label.grid(column=1, row=2)
 status_label.config(bg=YELLOW)
 
@@ -176,12 +228,13 @@ label_check.grid(column=1, row=5)
 
 # Convert button
 convert_button = Button(text="Convert", font= (FONT_NAME, 10, "bold"), height=1, width= 7, bg=ORANGE, command=lambda: convert(selected_mode.get()))
-convert_button.grid(columnspan=2, row= 7)
+convert_button.grid(columnspan=2, row= 8)
 
 # Text widget to display the result
 text_display = tk.Text(main_window, wrap=tk.WORD, height=10, width=60)
-text_display.grid(columnspan=2, row=6)
-text_display.config(state=tk.DISABLED)
+text_display.grid(columnspan=2, row=7)
+text_display.config(state=tk.NORMAL)
+
 
 main_window.protocol("WM_DELETE_WINDOW", on_close)
 
