@@ -5,6 +5,11 @@ from tkinter import Tk
 from PyPDF2 import PdfReader
 from tkinter import filedialog
 from fpdf import FPDF
+from pydub import AudioSegment
+import mimetypes
+import shutil
+
+
 
 # ---------------------------- CONSTANTS ------------------------------- #
 YELLOW = "#D9EDBF"
@@ -115,19 +120,78 @@ def convert(selected_mode):
 def upload(status_label):
     file_window = tk.Toplevel(main_window)
     file_window.title("Choose your file")
-    file_window.config(padx=100, pady=20, bg=YELLOW , highlightthickness=0)
+    file_window.config(padx=100, pady=20, bg=YELLOW, highlightthickness=0)
 
     file_path_var = tk.StringVar()
 
-    def select_file(x = file_window, status_label=status_label):
+    def select_file(x=file_window, status_label=status_label):
         global reader
         file_path = filedialog.askopenfilename(title="Select a File")
         if file_path:
             file_path_var.set(file_path)
-            reader = PdfReader(file_path)  # Update the PdfReader with the new file
-            # status_label.config(text="File selected successfully.")
-            save_file()
+            file_extension = os.path.splitext(file_path)[1].lower()
+
+            if file_extension == '.pdf':
+                reader = PdfReader(file_path)  # Update the PdfReader with the new PDF file
+                status_label.config(text="PDF file selected.")
+                save_file()
+            elif file_extension == '.txt':
+                convert_to_pdf(file_path)  # Convert text files to PDF and update the reader
+                status_label.config(text="Text file converted and saved as PDF.")
+            elif file_extension in ['.mp3', '.wav', '.ogg']:  # Assuming audio files can be in these formats
+                save_audio_file(file_path)  # Save audio file without conversion
+                status_label.config(text="Audio file saved.")
+            else:
+                status_label.config(text="Unsupported file type. Please select a valid file.")
+
             x.destroy()
+
+    # Additional functions for file conversion
+    def convert_to_pdf(file_path):
+        global reader
+        output_file_path = os.path.join(os.getcwd() , "output.pdf")
+        try:
+            # Determine the file type
+            file_type , _ = mimetypes.guess_type(file_path)
+            if file_type == 'text/plain':
+                # Convert text file to PDF
+                with open(file_path , 'r') as source_file:
+                    content = source_file.read()
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial" , size=12)
+                    pdf.multi_cell(0 , 10 , txt=content)
+                    pdf.output(output_file_path)
+            else:
+                raise ValueError("Unsupported file type.")
+
+            # Update the global reader variable
+            reader = PdfReader(output_file_path)
+        except Exception as e:
+            status_label.config(text=f"Error converting file: {str(e)}")
+
+    def save_audio_file(audio_file_path):
+        # Generate the output file path
+        output_file_path = os.path.join(os.getcwd() , "output" + os.path.splitext(audio_file_path)[ 1 ])
+
+        try:
+            # Create the output directory if it doesn't exist
+            output_directory = os.path.dirname(output_file_path)
+            os.makedirs(output_directory , exist_ok=True)
+
+            # Copy the audio file to the output directory
+            shutil.copy2(audio_file_path , output_file_path)
+
+            print(f"Audio file copied to: {output_file_path}")
+
+            # Export the audio using the copied file
+            audio = AudioSegment.from_file(output_file_path)
+            audio.export(output_file_path , format=os.path.splitext(audio_file_path)[ 1 ][ 1: ])
+
+            print(f"Audio exported successfully to: {output_file_path}")
+        except Exception as e:
+            status_label.config(text=f"Error saving audio file: {str(e)}")
+            print(f"Error: {str(e)}")
 
     def save_file():
         selected_file_path = file_path_var.get()
