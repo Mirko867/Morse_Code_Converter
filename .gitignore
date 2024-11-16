@@ -1,0 +1,39 @@
+# Byte-compiled files
+*.pyc
+*.pyo
+__pycache__/
+
+# Environment-specific files
+.env
+.vscode/
+.idea/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Compiled libraries
+*.so
+*.dll
+*.dylib
+
+# Application files
+output.pdf
+*.mp3
+*.wav
+*.ogg
+output/
+
+# UI images
+morse_icon.png
+
+# Python package-related
+dist/
+build/
+*.egg-info/
+*.spec
